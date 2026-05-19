@@ -1,3 +1,6 @@
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '8.8.4.4']); // Forces Google DNS
+
 // Load environment variables
 require("dotenv").config();
 const categoryRoutes = require("./routes/categoryRoutes");

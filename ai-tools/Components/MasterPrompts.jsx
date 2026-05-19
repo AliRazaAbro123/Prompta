@@ -1,100 +1,105 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 
-const prompts = [
-  {
-    id: 1,
-    category: "OTHER",
-    categoryColor: "#6b7a9e",
-    title: "YouTube Channel",
-    description: "Egejutnfnwmtnwg fgwtjwtjwy",
-    image: "https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
-  },
-  {
-    id: 2,
-    category: "OTHER",
-    categoryColor: "#6b7a9e",
-    title: "dfbjdnvjnlgdk",
-    description: "cghfghjhtr",
-    image: null,
-  },
-  {
-    id: 3,
-    category: "HUMAN",
-    categoryColor: "#38bdf8",
-    title: "Vvip master prompt 🤩",
-    description: "Djdkshdk dhfkfkffo",
-    image: null,
-  },
-  {
-    id: 4,
-    category: "ARCHITECTURE",
-    categoryColor: "#a78bfa",
-    title: "Ali dkdlkfkfo",
-    description: "Akdlormxxhxosows",
-    image: null,
-  },
-  {
-    id: 5,
-    category: "HUMAN",
-    categoryColor: "#38bdf8",
-    title: "Best master prompt 🤩",
-    description: "Jdsidkfodfofо dkdlabdoffo dododod",
-    image: null,
-  },
-  {
-    id: 6,
-    category: "CREATIVE",
-    categoryColor: "#34d399",
-    title: "Creative Vision Pro",
-    description: "Unlocks next-level creative generation for any medium",
-    image: null,
-  },
-];
+const API = "http://localhost:4000/api";
 
-const categoryIcons = {
-  OTHER: "◈",
-  HUMAN: "◉",
-  ARCHITECTURE: "⬡",
-  CREATIVE: "✦",
-};
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+function SkeletonCard() {
+  return (
+    <div className="rounded-2xl border border-white/6 bg-[#0d1529] animate-pulse p-5 flex flex-col gap-4">
+      <div className="h-2.5 w-20 rounded bg-white/8" />
+      <div className="flex items-start gap-4">
+        <div className="w-16 h-16 rounded-xl bg-white/8 shrink-0" />
+        <div className="flex flex-col gap-2 flex-1">
+          <div className="h-3 w-3/4 rounded bg-white/8" />
+          <div className="h-2.5 w-full rounded bg-white/5" />
+          <div className="h-2.5 w-2/3 rounded bg-white/5" />
+        </div>
+      </div>
+      <div className="h-9 w-full rounded-xl bg-white/5" />
+    </div>
+  );
+}
 
-function PlaceholderAvatar({ title, category }) {
-  const colors = {
-    OTHER: ["#1e3a5f", "#2563eb"],
-    HUMAN: ["#0c2a4a", "#0ea5e9"],
-    ARCHITECTURE: ["#1e1b4b", "#7c3aed"],
-    CREATIVE: ["#064e3b", "#059669"],
-  };
-  const [from, to] = colors[category] || ["#1e3a5f", "#2563eb"];
-  const initials = title.slice(0, 2).toUpperCase();
+// ── Empty State ───────────────────────────────────────────────────────────────
+function EmptyState() {
+  return (
+    <div className="col-span-full flex flex-col items-center justify-center py-24 gap-4">
+      <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="1.5">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div className="text-center">
+        <p className="text-sm font-semibold text-gray-500">No prompts in library yet</p>
+        <p className="text-xs text-gray-700 mt-1">Admin panel se library prompts upload karo</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Placeholder Avatar ────────────────────────────────────────────────────────
+function PlaceholderAvatar({ title }) {
+  const initials = (title || "??").slice(0, 2).toUpperCase();
   return (
     <div
       className="w-16 h-16 rounded-xl flex items-center justify-center text-white font-bold text-xl flex-shrink-0"
-      style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}
+      style={{ background: "linear-gradient(135deg, #1e3a6e, #1d4ed8)" }}
     >
       {initials}
     </div>
   );
 }
 
+// ── Copy Icon ─────────────────────────────────────────────────────────────────
 function CopyIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
     </svg>
   );
 }
 
+// ── Prompt Card ───────────────────────────────────────────────────────────────
 function PromptCard({ prompt, index }) {
-  const [copied, setCopied] = useState(false);
+  const [copied,  setCopied]  = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(prompt.title + " - " + prompt.description);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  // Resolve category name (might be populated object)
+  const categoryName = typeof prompt.category === "object"
+    ? (prompt.category?.name || "General")
+    : (prompt.category || "General");
+
+  // Cover image — beforeImage used as cover in library prompts
+  const coverImg = prompt.beforeImage && prompt.beforeImage !== "none"
+    ? prompt.beforeImage
+    : null;
+
+  // ── Copy real promptText from backend (select: false — needs separate call)
+  const handleCopy = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      // Fetch prompt with promptText included
+      const res = await axios.get(`${API}/prompts/${prompt._id}/prompt-text`);
+      const text = res.data?.promptText || "";
+      if (text) {
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      } else {
+        setCopied(false);
+        alert("Prompt text available nahi hai");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Copy fail ho gaya");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -121,7 +126,7 @@ function PromptCard({ prompt, index }) {
         }}
       />
 
-      {/* Glow orb on hover */}
+      {/* Glow orb */}
       <div
         className="absolute -top-10 -right-10 w-32 h-32 rounded-full transition-opacity duration-500 pointer-events-none"
         style={{
@@ -133,24 +138,21 @@ function PromptCard({ prompt, index }) {
       <div className="p-5 flex flex-col gap-4">
         {/* Category badge */}
         <div className="flex items-center gap-2">
-          <span
-            className="text-[10px] font-bold tracking-[0.18em] uppercase"
-            style={{ color: prompt.categoryColor }}
-          >
-            {categoryIcons[prompt.category]} {prompt.category}
+          <span className="text-[10px] font-bold tracking-[0.18em] uppercase text-blue-400">
+            ◈ {categoryName}
           </span>
         </div>
 
         {/* Content row */}
         <div className="flex items-start gap-4">
-          {prompt.image ? (
+          {coverImg ? (
             <img
-              src={prompt.image}
+              src={coverImg}
               alt={prompt.title}
               className="w-16 h-16 rounded-xl object-cover flex-shrink-0 ring-1 ring-white/10"
             />
           ) : (
-            <PlaceholderAvatar title={prompt.title} category={prompt.category} />
+            <PlaceholderAvatar title={prompt.title} />
           )}
 
           <div className="flex flex-col gap-1 min-w-0">
@@ -164,7 +166,7 @@ function PromptCard({ prompt, index }) {
               className="text-[#4e5f80] text-xs leading-relaxed line-clamp-2"
               style={{ fontFamily: "'DM Mono', monospace" }}
             >
-              {prompt.description}
+              {categoryName} · Library Prompt
             </p>
           </div>
         </div>
@@ -172,7 +174,8 @@ function PromptCard({ prompt, index }) {
         {/* Copy button */}
         <button
           onClick={handleCopy}
-          className="relative w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-300 overflow-hidden"
+          disabled={loading}
+          className="relative w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-300 overflow-hidden disabled:opacity-60 disabled:cursor-not-allowed"
           style={{
             background: copied
               ? "linear-gradient(135deg, #065f46, #059669)"
@@ -187,16 +190,20 @@ function PromptCard({ prompt, index }) {
             color: copied ? "#6ee7b7" : hovered ? "#93c5fd" : "#6b7a9e",
           }}
         >
-          <CopyIcon />
-          <span>{copied ? "Copied!" : "Copy Master Prompt"}</span>
+          {loading ? (
+            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+            </svg>
+          ) : (
+            <CopyIcon />
+          )}
+          <span>{loading ? "Fetching..." : copied ? "Copied!" : "Copy Master Prompt"}</span>
 
-          {/* Button shimmer */}
-          {hovered && !copied && (
+          {hovered && !copied && !loading && (
             <div
               className="absolute inset-0 pointer-events-none"
-              style={{
-                background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%)",
-              }}
+              style={{ background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%)" }}
             />
           )}
         </button>
@@ -205,23 +212,41 @@ function PromptCard({ prompt, index }) {
   );
 }
 
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function MasterPrompts() {
+  const [prompts, setPrompts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState(false);
+
+  useEffect(() => {
+    const fetchPrompts = async () => {
+      setLoading(true);
+      setError(false);
+      try {
+        const res  = await axios.get(`${API}/prompts/library`);
+        const data = Array.isArray(res.data) ? res.data : (res.data.prompts ?? []);
+        setPrompts(data);
+      } catch (err) {
+        console.error("Library fetch error:", err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPrompts();
+  }, []);
+
   return (
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&family=DM+Mono&display=swap');
-
         @keyframes fadeSlideUp {
           from { opacity: 0; transform: translateY(24px); }
           to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes pulseGlow {
           0%, 100% { opacity: 0.4; }
-          50% { opacity: 0.8; }
-        }
-        @keyframes shimmerX {
-          0%   { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
+          50%      { opacity: 0.8; }
         }
       `}</style>
 
@@ -237,15 +262,14 @@ export default function MasterPrompts() {
             style={{ background: "radial-gradient(circle, rgba(14,165,233,0.05) 0%, transparent 70%)", animation: "pulseGlow 4s ease-in-out infinite" }} />
           <div className="absolute top-20 right-10 w-48 h-48 rounded-full"
             style={{ background: "radial-gradient(circle, rgba(124,58,237,0.05) 0%, transparent 70%)", animation: "pulseGlow 5s ease-in-out infinite 1s" }} />
-          {/* Grid lines */}
           <div className="absolute inset-0 opacity-[0.025]"
             style={{ backgroundImage: "linear-gradient(rgba(99,179,237,1) 1px, transparent 1px), linear-gradient(90deg, rgba(99,179,237,1) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
         </div>
 
         <div className="relative z-10 max-w-5xl mx-auto">
+
           {/* Header */}
           <div className="text-center mb-14" style={{ animation: "fadeSlideUp 0.6s ease both" }}>
-            {/* Label pill */}
             <div className="inline-flex items-center gap-2 mb-5 px-4 py-1.5 rounded-full border"
               style={{ background: "rgba(29,78,216,0.1)", borderColor: "rgba(59,130,246,0.25)" }}>
               <span className="text-blue-400 text-[10px] font-bold tracking-[0.2em] uppercase">✦ Prompt Library</span>
@@ -256,11 +280,10 @@ export default function MasterPrompts() {
               style={{ fontFamily: "'DM Serif Display', serif", letterSpacing: "-0.01em" }}
             >
               Master{" "}
-              <span
-                className="relative inline-block"
-                style={{ WebkitTextFillColor: "transparent", backgroundClip: "text", WebkitBackgroundClip: "text",
-                  backgroundImage: "linear-gradient(135deg, #60a5fa 0%, #818cf8 50%, #38bdf8 100%)" }}
-              >
+              <span style={{
+                WebkitTextFillColor: "transparent", backgroundClip: "text", WebkitBackgroundClip: "text",
+                backgroundImage: "linear-gradient(135deg, #60a5fa 0%, #818cf8 50%, #38bdf8 100%)"
+              }}>
                 Prompts
               </span>
             </h2>
@@ -270,35 +293,28 @@ export default function MasterPrompts() {
               Curated high-performance prompts built for visionaries and AI creators.
             </p>
 
-            {/* Divider */}
             <div className="mt-8 mx-auto w-24 h-px"
               style={{ background: "linear-gradient(90deg, transparent, rgba(59,130,246,0.5), transparent)" }} />
           </div>
 
-          {/* Cards grid — 2 cols desktop, 1 col mobile */}
+          {/* Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {prompts.map((prompt, i) => (
-              <PromptCard key={prompt.id} prompt={prompt} index={i} />
-            ))}
-          </div>
 
-          {/* Bottom CTA */}
-          <div className="mt-14 text-center" style={{ animation: "fadeSlideUp 0.7s ease both 0.4s" }}>
-            <button
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white transition-all duration-300"
-              style={{
-                background: "linear-gradient(135deg, #1d4ed8, #2563eb)",
-                boxShadow: "0 0 30px rgba(37,99,235,0.3), 0 4px 16px rgba(0,0,0,0.4)",
-                fontFamily: "'DM Sans', sans-serif",
-              }}
-              onMouseEnter={e => e.currentTarget.style.boxShadow = "0 0 40px rgba(37,99,235,0.5), 0 8px 24px rgba(0,0,0,0.5)"}
-              onMouseLeave={e => e.currentTarget.style.boxShadow = "0 0 30px rgba(37,99,235,0.3), 0 4px 16px rgba(0,0,0,0.4)"}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-              </svg>
-              Browse All Prompts
-            </button>
+            {loading && Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+
+            {!loading && error && (
+              <div className="col-span-full text-center py-20">
+                <p className="text-red-400 text-sm font-semibold">Backend se data nahi aaya</p>
+                <p className="text-gray-700 text-xs mt-1">Server check karo</p>
+              </div>
+            )}
+
+            {!loading && !error && prompts.length === 0 && <EmptyState />}
+
+            {!loading && !error && prompts.map((prompt, i) => (
+              <PromptCard key={prompt._id} prompt={prompt} index={i} />
+            ))}
+
           </div>
         </div>
       </section>

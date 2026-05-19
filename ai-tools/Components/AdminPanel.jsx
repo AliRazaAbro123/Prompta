@@ -1,31 +1,54 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import axios from "axios";
 
-// ── DATA ──────────────────────────────────────────────────────────────────────
-const DB_CATEGORIES = [
-  "Human Restoration",
-  "Abstract Art",
-  "Nature Scenes",
-  "Building Decoration",
-  "Character Design",
-  "Architectural Visuals",
-];
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const API = "http://localhost:4000/api"; // apna backend URL yahan
 
-const INVENTORY = [
-  { label: "Total Users", value: 0 },
-  { label: "Vendors", value: 0 },
-  { label: "Live Gallery", value: 9 },
-  { label: "Prompt Library", value: 5 },
-];
+// ── HELPERS ───────────────────────────────────────────────────────────────────
 
-// ── SMALL HELPERS ─────────────────────────────────────────────────────────────
+// File → base64 string
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = () => resolve(reader.result); // "data:image/...;base64,..."
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Toast notification
+function Toast({ msg, type }) {
+  if (!msg) return null;
+  const colors = {
+    success: "border-emerald-500/40 bg-emerald-950/60 text-emerald-300",
+    error:   "border-red-500/40   bg-red-950/60   text-red-300",
+    loading: "border-blue-500/40  bg-blue-950/60  text-blue-300",
+  };
+  return (
+    <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl border text-sm font-medium backdrop-blur-sm shadow-xl transition-all ${colors[type]}`}>
+      {type === "loading" && (
+        <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+        </svg>
+      )}
+      {type === "success" && <span>✓</span>}
+      {type === "error"   && <span>✕</span>}
+      {msg}
+    </div>
+  );
+}
+
+// ── SMALL UI PIECES ───────────────────────────────────────────────────────────
+
 function Tag({ label, onRemove }) {
   return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-blue-900/50 bg-blue-950/30 text-blue-300 transition-all hover:border-blue-500/50 hover:bg-blue-900/30 cursor-default">
+    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-blue-900/50 bg-blue-950/30 text-blue-300 hover:border-blue-500/50 hover:bg-blue-900/30 transition-all cursor-default">
       <span className="text-blue-500">#</span>
       {label}
       {onRemove && (
-        <button onClick={onRemove} className="ml-1 text-blue-500 hover:text-red-400 transition-colors text-xs leading-none">×</button>
+        <button onClick={onRemove} className="ml-1 text-blue-500 hover:text-red-400 transition-colors leading-none">×</button>
       )}
     </span>
   );
@@ -36,26 +59,44 @@ function SectionCard({ icon, title, children, delay = "0ms" }) {
     <div
       className="rounded-2xl border border-white/5 p-6 transition-all duration-300 hover:border-blue-900/40"
       style={{
-        background: "linear-gradient(145deg, #0d1529 0%, #080d1c 100%)",
+        background: "linear-gradient(145deg,#0d1529 0%,#080d1c 100%)",
         boxShadow: "0 4px 32px rgba(0,0,0,0.5)",
-        animation: `fadeUp 0.5s ease both`,
+        animation: "fadeUp 0.5s ease both",
         animationDelay: delay,
       }}
     >
       <div className="flex items-center gap-2.5 mb-5">
         <span className="text-blue-400 text-lg">{icon}</span>
-        <h2 className="text-white font-bold text-lg" style={{ fontFamily: "'DM Sans', sans-serif" }}>{title}</h2>
+        <h2 className="text-white font-bold text-lg" style={{ fontFamily: "'DM Sans',sans-serif" }}>{title}</h2>
       </div>
       {children}
     </div>
   );
 }
 
+function Label({ text }) {
+  return <p className="text-[10px] font-bold tracking-[0.15em] uppercase text-blue-400 mb-2">{text}</p>;
+}
+
+function TextInput({ value, onChange, placeholder, className = "" }) {
+  return (
+    <input
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      className={`w-full rounded-xl px-4 py-2.5 text-sm text-white placeholder-blue-900/50 outline-none border focus:border-blue-500/60 transition-all ${className}`}
+      style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.07)" }}
+    />
+  );
+}
+
+// ── IMAGE UPLOAD BOX ──────────────────────────────────────────────────────────
+
 function ImageUploadBox({ label, preview, onFile }) {
   const ref = useRef();
   return (
     <div className="flex-1">
-      <p className="text-[10px] font-bold tracking-[0.15em] uppercase text-blue-400 mb-2">{label}</p>
+      <Label text={label} />
       <div
         onClick={() => ref.current.click()}
         className="relative rounded-xl border-2 border-dashed border-blue-900/50 bg-blue-950/10 flex items-center justify-center cursor-pointer overflow-hidden transition-all duration-300 hover:border-blue-500/50 hover:bg-blue-900/10"
@@ -65,38 +106,53 @@ function ImageUploadBox({ label, preview, onFile }) {
           <img src={preview} alt={label} className="w-full h-full object-cover rounded-xl" />
         ) : (
           <div className="flex flex-col items-center gap-2 text-blue-900">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
             <span className="text-xs text-blue-800">Click to upload</span>
           </div>
         )}
         <div className="absolute inset-0 bg-blue-500/0 hover:bg-blue-500/5 transition-colors duration-200" />
       </div>
-      <input ref={ref} type="file" accept="image/*" className="hidden" onChange={e => {
-        const f = e.target.files[0];
-        if (f) onFile(URL.createObjectURL(f));
-      }} />
+      <input
+        ref={ref}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={async (e) => {
+          const f = e.target.files[0];
+          if (f) onFile(f); // pass actual File object
+        }}
+      />
     </div>
   );
 }
 
-function CategoryGrid({ selected, onToggle }) {
+// ── CATEGORY PICKER (from real DB) ───────────────────────────────────────────
+
+function CategoryPicker({ categories, selected, onSelect }) {
   return (
     <div className="grid grid-cols-2 gap-2">
-      {DB_CATEGORIES.map(cat => {
-        const active = selected.includes(cat);
+      {categories.length === 0 && (
+        <p className="col-span-2 text-xs text-blue-900 py-2">No categories yet. Add one above first.</p>
+      )}
+      {categories.map((cat) => {
+        const active = selected === cat._id;
         return (
           <button
-            key={cat}
-            onClick={() => onToggle(cat)}
-            className="px-3 py-2 rounded-xl text-xs font-medium border transition-all duration-200"
+            key={cat._id}
+            onClick={() => onSelect(active ? "" : cat._id)}
+            className="px-3 py-2 rounded-xl text-xs font-medium border transition-all duration-200 text-left"
             style={{
-              background: active ? "linear-gradient(135deg,#1e3a6e,#1d4ed8)" : "rgba(255,255,255,0.03)",
-              borderColor: active ? "rgba(59,130,246,0.6)" : "rgba(255,255,255,0.07)",
-              color: active ? "#93c5fd" : "#4e5f80",
-              boxShadow: active ? "0 0 16px rgba(29,78,216,0.2)" : "none",
+              background:   active ? "linear-gradient(135deg,#1e3a6e,#1d4ed8)" : "rgba(255,255,255,0.03)",
+              borderColor:  active ? "rgba(59,130,246,0.6)"                    : "rgba(255,255,255,0.07)",
+              color:        active ? "#93c5fd"                                  : "#4e5f80",
+              boxShadow:    active ? "0 0 16px rgba(29,78,216,0.2)"             : "none",
             }}
           >
-            {cat}
+            {cat.name}
           </button>
         );
       })}
@@ -104,171 +160,330 @@ function CategoryGrid({ selected, onToggle }) {
   );
 }
 
-// ── TRANSFORMATION CARD ───────────────────────────────────────────────────────
-function TransformationCard() {
-  const [before, setBefore] = useState(null);
-  const [after, setAfter] = useState(null);
-  const [cats, setCats] = useState([]);
-  const [prompt, setPrompt] = useState("");
-  const [saved, setSaved] = useState(false);
+// ── COMMUNITY PROMPT CARD ─────────────────────────────────────────────────────
 
-  const toggle = c => setCats(p => p.includes(c) ? p.filter(x => x !== c) : [...p, c]);
+function CommunityPromptCard({ categories, onToast }) {
+  const [beforeFile,  setBeforeFile]  = useState(null);
+  const [afterFile,   setAfterFile]   = useState(null);
+  const [beforePrev,  setBeforePrev]  = useState(null);
+  const [afterPrev,   setAfterPrev]   = useState(null);
+  const [title,       setTitle]       = useState("");
+  const [categoryId,  setCategoryId]  = useState("");
+  const [promptText,  setPromptText]  = useState("");
+  const [loading,     setLoading]     = useState(false);
 
-  const handleNext = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleBeforeFile = (file) => {
+    setBeforeFile(file);
+    setBeforePrev(URL.createObjectURL(file));
+  };
+  const handleAfterFile = (file) => {
+    setAfterFile(file);
+    setAfterPrev(URL.createObjectURL(file));
+  };
+
+  const validate = () => {
+    if (!title.trim())    { onToast("Title likhna zaroori hai", "error"); return false; }
+    if (!beforeFile)      { onToast("Before image select karo", "error"); return false; }
+    if (!afterFile)       { onToast("After image select karo",  "error"); return false; }
+    if (!categoryId)      { onToast("Category select karo",     "error"); return false; }
+    if (!promptText.trim()){ onToast("Prompt text likhna zaroori hai", "error"); return false; }
+    return true;
+  };
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
+    setLoading(true);
+    onToast("Upload ho raha hai...", "loading");
+    try {
+      // Convert images to base64
+      const [b64Before, b64After] = await Promise.all([
+        fileToBase64(beforeFile),
+        fileToBase64(afterFile),
+      ]);
+
+      await axios.post(`${API}/prompts`, {
+        title:        title.trim(),
+        beforeImage:  b64Before,
+        afterImage:   b64After,
+        promptText:   promptText.trim(),
+        categoryId,
+        type:         "community",
+      });
+
+      onToast("Community prompt upload ho gaya! ✓", "success");
+
+      // Reset
+      setTitle(""); setPromptText(""); setCategoryId("");
+      setBeforeFile(null); setAfterFile(null);
+      setBeforePrev(null); setAfterPrev(null);
+    } catch (err) {
+      console.error(err);
+      onToast(err?.response?.data?.message || "Upload fail ho gaya", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <SectionCard icon="⚡" title="Transformation Details" delay="0.15s">
-      {/* Before / After */}
-      <div className="flex gap-4 mb-6">
-        <ImageUploadBox label="Before" preview={before} onFile={setBefore} />
-        <ImageUploadBox label="After" preview={after} onFile={setAfter} />
-      </div>
-
-      {/* Category */}
-      <p className="text-[10px] font-bold tracking-[0.15em] uppercase text-blue-400 mb-3">Choose Category</p>
-      <CategoryGrid selected={cats} onToggle={toggle} />
-
-      {/* Prompt */}
-      <div className="mt-5">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-[10px] font-bold tracking-[0.15em] uppercase text-blue-400">Master AI Prompt</p>
-          <span className="text-[10px] text-blue-900">{prompt.length}/999</span>
-        </div>
-        <textarea
-          value={prompt}
-          onChange={e => setPrompt(e.target.value.slice(0, 999))}
-          placeholder="Paste the precise prompt..."
-          rows={4}
-          className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-blue-900/60 resize-none outline-none transition-all duration-200 border focus:border-blue-500/60"
-          style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.07)", fontFamily: "'DM Mono', monospace", fontSize: 12 }}
+    <SectionCard icon="⚡" title="Community Prompt Upload" delay="0.15s">
+      {/* Title */}
+      <Label text="Prompt Title" />
+      <div className="mb-5">
+        <TextInput
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          placeholder="e.g. Portrait Elegance Restore"
         />
       </div>
 
-      {/* Buttons */}
-      <div className="flex gap-3 mt-5">
-        <button className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-white/8 text-blue-400 hover:bg-white/5 transition-all">Back</button>
-        <button
-          onClick={handleNext}
-          className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-300"
-          style={{ background: saved ? "linear-gradient(135deg,#065f46,#059669)" : "linear-gradient(135deg,#1e3a6e,#1d4ed8)", boxShadow: "0 0 20px rgba(29,78,216,0.3)" }}
-        >
-          {saved ? "✓ Saved!" : "Next Step"}
-        </button>
+      {/* Before / After Images */}
+      <div className="flex gap-4 mb-6">
+        <ImageUploadBox label="Before Image" preview={beforePrev} onFile={handleBeforeFile} />
+        <ImageUploadBox label="After Image"  preview={afterPrev}  onFile={handleAfterFile}  />
       </div>
+
+      {/* Category */}
+      <Label text="Choose Category" />
+      <div className="mb-5">
+        <CategoryPicker categories={categories} selected={categoryId} onSelect={setCategoryId} />
+      </div>
+
+      {/* Prompt Text */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <Label text="AI Prompt Text" />
+          <span className="text-[10px] text-blue-900">{promptText.length}/999</span>
+        </div>
+        <textarea
+          value={promptText}
+          onChange={e => setPromptText(e.target.value.slice(0, 999))}
+          placeholder="Paste the precise AI prompt..."
+          rows={4}
+          className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-blue-900/60 resize-none outline-none border focus:border-blue-500/60 transition-all"
+          style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.07)", fontFamily: "'DM Mono',monospace", fontSize: 12 }}
+        />
+      </div>
+
+      {/* Submit */}
+      <button
+        onClick={handleSubmit}
+        disabled={loading}
+        className="w-full mt-5 py-3 rounded-xl text-sm font-semibold text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-[0.99]"
+        style={{ background: "linear-gradient(135deg,#1e3a6e,#1d4ed8)", boxShadow: "0 0 20px rgba(29,78,216,0.3)" }}
+      >
+        {loading ? "Uploading..." : "🚀 Upload to Community Gallery"}
+      </button>
     </SectionCard>
   );
 }
 
-// ── PROMPT LIBRARY SUBMISSION ─────────────────────────────────────────────────
-function PromptLibraryCard() {
-  const [photo, setPhoto] = useState(null);
-  const [title, setTitle] = useState("");
-  const [cats, setCats] = useState([]);
-  const [prompt, setPrompt] = useState("");
-  const [published, setPublished] = useState(false);
-  const photoRef = useRef();
+// ── PROMPT LIBRARY CARD ───────────────────────────────────────────────────────
 
-  const toggle = c => setCats(p => p.includes(c) ? p.filter(x => x !== c) : [...p, c]);
+function PromptLibraryCard({ categories, onToast }) {
+  const [photoFile,  setPhotoFile]  = useState(null);
+  const [photoPrev,  setPhotoPrev]  = useState(null);
+  const [title,      setTitle]      = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [promptText, setPromptText] = useState("");
+  const [loading,    setLoading]    = useState(false);
 
-  const handlePublish = () => {
-    setPublished(true);
-    setTimeout(() => setPublished(false), 2500);
+  const handlePhotoFile = (file) => {
+    setPhotoFile(file);
+    setPhotoPrev(URL.createObjectURL(file));
+  };
+
+  const validate = () => {
+    if (!title.trim())     { onToast("Title likhna zaroori hai", "error"); return false; }
+    if (!categoryId)       { onToast("Category select karo",     "error"); return false; }
+    if (!promptText.trim()){ onToast("Prompt text likhna zaroori hai", "error"); return false; }
+    return true;
+  };
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
+    setLoading(true);
+    onToast("Upload ho raha hai...", "loading");
+    try {
+      let coverImage = "";
+      if (photoFile) {
+        coverImage = await fileToBase64(photoFile);
+      }
+
+      await axios.post(`${API}/prompts`, {
+        title:        title.trim(),
+        beforeImage:  coverImage || "none",  // library prompts mein before/after optional
+        afterImage:   coverImage || "none",
+        promptText:   promptText.trim(),
+        categoryId,
+        type:         "library",
+      });
+
+      onToast("Library prompt publish ho gaya! ✓", "success");
+
+      // Reset
+      setTitle(""); setPromptText(""); setCategoryId("");
+      setPhotoFile(null); setPhotoPrev(null);
+    } catch (err) {
+      console.error(err);
+      onToast(err?.response?.data?.message || "Publish fail ho gaya", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <SectionCard icon="📚" title="Prompt Library Submission" delay="0.25s">
-      {/* Optional photo */}
-      <p className="text-[10px] font-bold tracking-[0.15em] uppercase text-blue-400 mb-2">Optional Photo</p>
+
+      {/* Optional cover photo */}
+      <Label text="Cover Photo (Optional)" />
       <div
-        onClick={() => photoRef.current.click()}
+        onClick={() => document.getElementById("lib-photo-input").click()}
         className="relative rounded-xl border-2 border-dashed border-blue-900/50 bg-blue-950/10 flex items-center justify-center cursor-pointer overflow-hidden hover:border-blue-500/50 transition-all duration-300 mb-5"
         style={{ height: 110 }}
       >
-        {photo
-          ? <img src={photo} alt="cover" className="w-full h-full object-cover rounded-xl" />
+        {photoPrev
+          ? <img src={photoPrev} alt="cover" className="w-full h-full object-cover rounded-xl" />
           : <div className="flex flex-col items-center gap-2 text-blue-900">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+              </svg>
               <span className="text-xs">Click to upload cover image</span>
             </div>
         }
       </div>
-      <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files[0]; if(f) setPhoto(URL.createObjectURL(f)); }} />
-
-      {/* Title */}
-      <p className="text-[10px] font-bold tracking-[0.15em] uppercase text-blue-400 mb-2">Prompt Title</p>
       <input
-        value={title}
-        onChange={e => setTitle(e.target.value)}
-        placeholder="e.g. Architectural Restoration Master"
-        className="w-full rounded-xl px-4 py-2.5 text-sm text-white placeholder-blue-900/50 outline-none border focus:border-blue-500/60 transition-all mb-5"
-        style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.07)" }}
+        id="lib-photo-input"
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files[0]; if (f) handlePhotoFile(f); }}
       />
 
-      {/* Category */}
-      <p className="text-[10px] font-bold tracking-[0.15em] uppercase text-blue-400 mb-3">Choose Category</p>
-      <CategoryGrid selected={cats} onToggle={toggle} />
-
-      {/* Prompt */}
-      <div className="mt-5">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-[10px] font-bold tracking-[0.15em] uppercase text-blue-400">The Master Prompt</p>
-          <span className="text-[10px] text-blue-900">{prompt.length}/999</span>
-        </div>
-        <textarea
-          value={prompt}
-          onChange={e => setPrompt(e.target.value.slice(0,999))}
-          placeholder="Paste the precise prompt..."
-          rows={4}
-          className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-blue-900/60 resize-none outline-none border focus:border-blue-500/60 transition-all"
-          style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.07)", fontFamily: "'DM Mono', monospace", fontSize: 12 }}
+      {/* Title */}
+      <Label text="Prompt Title" />
+      <div className="mb-5">
+        <TextInput
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          placeholder="e.g. Architectural Restoration Master"
         />
       </div>
 
-      {/* Buttons */}
-      <div className="flex gap-3 mt-5">
-        <button className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-white/8 text-blue-400 hover:bg-white/5 transition-all">Back</button>
-        <button
-          onClick={handlePublish}
-          className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-300"
-          style={{ background: published ? "linear-gradient(135deg,#065f46,#059669)" : "linear-gradient(135deg,#1e3a6e,#1d4ed8)", boxShadow: "0 0 20px rgba(29,78,216,0.3)" }}
-        >
-          {published ? "✓ Published!" : "Publish Prompt"}
-        </button>
+      {/* Category */}
+      <Label text="Choose Category" />
+      <div className="mb-5">
+        <CategoryPicker categories={categories} selected={categoryId} onSelect={setCategoryId} />
       </div>
+
+      {/* Prompt */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <Label text="The Master Prompt" />
+          <span className="text-[10px] text-blue-900">{promptText.length}/999</span>
+        </div>
+        <textarea
+          value={promptText}
+          onChange={e => setPromptText(e.target.value.slice(0, 999))}
+          placeholder="Paste the precise prompt..."
+          rows={4}
+          className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-blue-900/60 resize-none outline-none border focus:border-blue-500/60 transition-all"
+          style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.07)", fontFamily: "'DM Mono',monospace", fontSize: 12 }}
+        />
+      </div>
+
+      {/* Submit */}
+      <button
+        onClick={handleSubmit}
+        disabled={loading}
+        className="w-full mt-5 py-3 rounded-xl text-sm font-semibold text-white transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01] active:scale-[0.99]"
+        style={{ background: "linear-gradient(135deg,#065f46,#059669)", boxShadow: "0 0 20px rgba(5,150,105,0.3)" }}
+      >
+        {loading ? "Publishing..." : "📚 Publish to Library"}
+      </button>
     </SectionCard>
   );
 }
 
-// ── MAIN PANEL ────────────────────────────────────────────────────────────────
-export default function AdminPanel() {
-  const [catName, setCatName] = useState("");
-  const [slugName, setSlugName] = useState("");
-  const [categories, setCategories] = useState(DB_CATEGORIES);
+// ── MAIN ADMIN PANEL ──────────────────────────────────────────────────────────
 
-  const addCategory = () => {
-    const t = catName.trim();
-    if (!t || categories.includes(t)) return;
-    setCategories(p => [...p, t]);
-    setCatName("");
-    setSlugName("");
+export default function AdminPanel() {
+  const [catName,    setCatName]    = useState("");
+  const [categories, setCategories] = useState([]);  // { _id, name } from DB
+  const [catLoading, setCatLoading] = useState(false);
+  const [toast,      setToast]      = useState({ msg: "", type: "success" });
+
+  // Show toast for 3 seconds
+  const showToast = useCallback((msg, type = "success") => {
+    setToast({ msg, type });
+    if (type !== "loading") {
+      setTimeout(() => setToast({ msg: "", type: "success" }), 3000);
+    }
+  }, []);
+
+  // Fetch categories from backend
+  const fetchCategories = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/categories`);
+      // Handle both { categories: [...] } and direct array
+      const data = Array.isArray(res.data) ? res.data : (res.data.categories ?? []);
+      setCategories(data);
+    } catch (err) {
+      console.error("Categories fetch error:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  // Add category to DB
+  const addCategory = async () => {
+    const name = catName.trim();
+    if (!name) return;
+    if (categories.find(c => c.name.toLowerCase() === name.toLowerCase())) {
+      showToast("Yeh category pehle se exist karti hai", "error");
+      return;
+    }
+    setCatLoading(true);
+    try {
+      const res = await axios.post(`${API}/categories`, { name });
+      const newCat = res.data.category || res.data;
+      setCategories(p => [...p, newCat]);
+      setCatName("");
+      showToast(`"${name}" category add ho gayi ✓`, "success");
+    } catch (err) {
+      showToast(err?.response?.data?.message || "Category add fail", "error");
+    } finally {
+      setCatLoading(false);
+    }
+  };
+
+  // Delete category
+  const deleteCategory = async (id, name) => {
+    try {
+      await axios.delete(`${API}/categories/${id}`);
+      setCategories(p => p.filter(c => c._id !== id));
+      showToast(`"${name}" delete ho gayi`, "success");
+    } catch (err) {
+      showToast("Delete fail ho gayi", "error");
+    }
   };
 
   return (
     <>
+      <Toast msg={toast.msg} type={toast.type} />
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&family=DM+Mono&display=swap');
         @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
         @keyframes pulseGlow { 0%,100%{opacity:.4} 50%{opacity:.9} }
-        * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 4px; } 
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #1e3a6e; border-radius: 2px; }
+        * { box-sizing:border-box; }
+        ::-webkit-scrollbar { width:4px; }
+        ::-webkit-scrollbar-track { background:transparent; }
+        ::-webkit-scrollbar-thumb { background:#1e3a6e; border-radius:2px; }
       `}</style>
 
-      <div className="min-h-screen w-full mt-16" style={{ background: "linear-gradient(160deg,#070b18 0%,#06091a 100%)", fontFamily: "'DM Sans', sans-serif" }}>
+      <div className="min-h-screen w-full mt-16" style={{ background:"linear-gradient(160deg,#070b18 0%,#06091a 100%)", fontFamily:"'DM Sans',sans-serif" }}>
 
         {/* Background glows */}
         <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -284,18 +499,23 @@ export default function AdminPanel() {
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background:"linear-gradient(135deg,#f59e0b,#d97706)", boxShadow:"0 0 20px rgba(245,158,11,.3)" }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                  </svg>
                 </div>
                 <h1 className="text-white text-2xl font-bold" style={{ fontFamily:"'DM Serif Display',serif" }}>Control Center</h1>
               </div>
               <p className="text-[#4e5f80] text-sm ml-12">Platform orchestration &amp; management</p>
             </div>
-            <button
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-300 hover:scale-105"
-              style={{ background:"linear-gradient(135deg,#1d4ed8,#2563eb)", boxShadow:"0 0 24px rgba(37,99,235,.35)" }}
-            >
-              <span className="text-lg leading-none">+</span> Upload
-            </button>
+
+            {/* Live indicator */}
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-emerald-500/20 bg-emerald-950/20">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+              </span>
+              <span className="text-xs text-emerald-400 font-medium">Backend Connected</span>
+            </div>
           </div>
 
           {/* ── TWO-COLUMN LAYOUT ── */}
@@ -304,57 +524,66 @@ export default function AdminPanel() {
             {/* LEFT COLUMN */}
             <div className="flex-1 flex flex-col gap-6">
 
-              {/* CATEGORIES */}
+              {/* ── CATEGORIES ── */}
               <SectionCard icon="⊞" title="Categories" delay="0.05s">
                 <div className="flex gap-3 mb-5">
                   <input
                     value={catName}
-                    onChange={e => { setCatName(e.target.value); setSlugName(e.target.value.toLowerCase().replace(/\s+/g,"-")); }}
-                    placeholder="Category Name"
-                    className="flex-1 rounded-xl px-4 py-2.5 text-sm text-white placeholder-blue-900/50 outline-none border focus:border-blue-500/60 transition-all"
-                    style={{ background:"rgba(255,255,255,0.03)", borderColor:"rgba(255,255,255,0.07)" }}
+                    onChange={e => setCatName(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && addCategory()}
-                  />
-                  <input
-                    value={slugName}
-                    onChange={e => setSlugName(e.target.value)}
-                    placeholder="slug-name"
+                    placeholder="New category name..."
                     className="flex-1 rounded-xl px-4 py-2.5 text-sm text-white placeholder-blue-900/50 outline-none border focus:border-blue-500/60 transition-all"
                     style={{ background:"rgba(255,255,255,0.03)", borderColor:"rgba(255,255,255,0.07)" }}
                   />
                   <button
                     onClick={addCategory}
-                    className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105"
+                    disabled={catLoading || !catName.trim()}
+                    className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{ background:"linear-gradient(135deg,#1d4ed8,#2563eb)", boxShadow:"0 0 16px rgba(37,99,235,.3)" }}
                   >
-                    Add
+                    {catLoading ? "..." : "Add"}
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map(c => (
-                    <Tag key={c} label={c} onRemove={() => setCategories(p => p.filter(x => x !== c))} />
-                  ))}
-                </div>
+
+                {/* Category tags */}
+                {categories.length === 0 ? (
+                  <p className="text-xs text-blue-900 py-2">Koi category nahi mili. Pehle add karo.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {categories.map(c => (
+                      <Tag
+                        key={c._id}
+                        label={c.name}
+                        onRemove={() => deleteCategory(c._id, c.name)}
+                      />
+                    ))}
+                  </div>
+                )}
               </SectionCard>
 
-              {/* TRANSFORMATION */}
-              <TransformationCard />
+              {/* ── COMMUNITY PROMPT ── */}
+              <CommunityPromptCard categories={categories} onToast={showToast} />
 
-              {/* PROMPT LIBRARY SUBMISSION */}
-              <PromptLibraryCard />
+              {/* ── LIBRARY PROMPT ── */}
+              <PromptLibraryCard categories={categories} onToast={showToast} />
+
             </div>
 
-            {/* RIGHT COLUMN */}
+            {/* RIGHT COLUMN — Stats */}
             <div className="w-full lg:w-72 flex flex-col gap-5">
 
-              {/* INVENTORY HEALTH */}
+              {/* Category count */}
               <div
-                className="rounded-2xl border border-white/5 p-5 transition-all duration-300 hover:border-blue-900/40"
+                className="rounded-2xl border border-white/5 p-5"
                 style={{ background:"linear-gradient(145deg,#0d1529,#080d1c)", boxShadow:"0 4px 32px rgba(0,0,0,.5)", animation:"fadeUp .5s ease both .1s" }}
               >
                 <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-amber-400 mb-4">⬡ Inventory Health</p>
                 <div className="flex flex-col gap-3">
-                  {INVENTORY.map(({ label, value }) => (
+                  {[
+                    { label: "Categories", value: categories.length },
+                    { label: "Active Sessions", value: 3 },
+                    { label: "Pending Review", value: 2 },
+                  ].map(({ label, value }) => (
                     <div key={label} className="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0">
                       <span className="text-[#8b90a8] text-sm">{label}</span>
                       <span className="text-white font-bold text-lg w-8 h-8 rounded-lg flex items-center justify-center"
@@ -366,30 +595,31 @@ export default function AdminPanel() {
                 </div>
               </div>
 
-              {/* QUICK STATS */}
+              {/* How to use guide */}
               <div
                 className="rounded-2xl border border-white/5 p-5"
                 style={{ background:"linear-gradient(145deg,#0d1529,#080d1c)", boxShadow:"0 4px 32px rgba(0,0,0,.5)", animation:"fadeUp .5s ease both .2s" }}
               >
-                <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-blue-400 mb-4">◈ Quick Stats</p>
+                <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-blue-400 mb-4">◈ How to Upload</p>
                 <div className="flex flex-col gap-3">
                   {[
-                    { label:"Categories", value: categories.length, color:"#60a5fa" },
-                    { label:"Active Sessions", value:3, color:"#34d399" },
-                    { label:"Pending Review", value:2, color:"#f59e0b" },
-                  ].map(({ label, value, color }) => (
-                    <div key={label} className="flex items-center gap-3">
-                      <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
-                        <div className="h-full rounded-full transition-all duration-700" style={{ width:`${Math.min(value*10,100)}%`, background: color }} />
-                      </div>
-                      <span className="text-[#6b7a9e] text-xs w-24 text-right">{label}</span>
-                      <span className="text-white font-bold text-sm w-4">{value}</span>
+                    { step:"1", text:"Pehle category add karo upar se", color:"#60a5fa" },
+                    { step:"2", text:"Community prompt mein before/after images upload karo", color:"#a78bfa" },
+                    { step:"3", text:"Category select karo aur AI prompt likho", color:"#34d399" },
+                    { step:"4", text:"Library prompt mein sirf ek cover image kaafi hai", color:"#f59e0b" },
+                  ].map(({ step, text, color }) => (
+                    <div key={step} className="flex items-start gap-3">
+                      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
+                        style={{ background:`${color}22`, color, border:`1px solid ${color}44` }}>
+                        {step}
+                      </span>
+                      <span className="text-[#6b7a9e] text-xs leading-relaxed">{text}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* PLATFORM STATUS */}
+              {/* Platform Status */}
               <div
                 className="rounded-2xl border border-white/5 p-5"
                 style={{ background:"linear-gradient(145deg,#0d1529,#080d1c)", boxShadow:"0 4px 32px rgba(0,0,0,.5)", animation:"fadeUp .5s ease both .3s" }}
@@ -397,10 +627,10 @@ export default function AdminPanel() {
                 <p className="text-[10px] font-bold tracking-[0.18em] uppercase text-blue-400 mb-4">● Platform Status</p>
                 <div className="flex flex-col gap-2.5">
                   {[
-                    { name:"API Gateway", ok:true },
-                    { name:"Image CDN", ok:true },
-                    { name:"Auth Service", ok:true },
-                    { name:"Analytics", ok:false },
+                    { name:"Backend API",   ok: true  },
+                    { name:"Image Upload",  ok: true  },
+                    { name:"Database",      ok: true  },
+                    { name:"Analytics",     ok: false },
                   ].map(({ name, ok }) => (
                     <div key={name} className="flex items-center justify-between">
                       <span className="text-[#6b7a9e] text-xs">{name}</span>
@@ -409,12 +639,15 @@ export default function AdminPanel() {
                           {ok && <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background:"#34d399" }} />}
                           <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: ok ? "#34d399" : "#f87171" }} />
                         </span>
-                        <span className="text-[10px]" style={{ color: ok ? "#34d399" : "#f87171" }}>{ok ? "Operational" : "Degraded"}</span>
+                        <span className="text-[10px]" style={{ color: ok ? "#34d399" : "#f87171" }}>
+                          {ok ? "Operational" : "Degraded"}
+                        </span>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
+
             </div>
           </div>
         </div>

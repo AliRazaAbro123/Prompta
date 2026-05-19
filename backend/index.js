@@ -9,7 +9,8 @@ const mongoose = require("mongoose");
 const app = express();
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: "20mb" }));
+app.use(express.urlencoded({ limit: "20mb", extended: true }));
 app.use(
   cors({
     origin: "*", // sab allow (development)

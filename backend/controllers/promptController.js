@@ -76,3 +76,78 @@ exports.getCommunityPrompts = async (req, res) => {
     });
   }
 };
+
+// DELETE SINGLE PROMPT
+exports.deletePrompt = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deletedPrompt = await Prompt.findByIdAndDelete(id);
+
+    if (!deletedPrompt) {
+      return res.status(404).json({
+        message: "Prompt not found",
+      });
+    }
+
+    res.status(200).json({
+      message: "Prompt deleted successfully",
+      deletedPrompt,
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Server Error",
+      error: error.message,
+    });
+  }
+};
+
+// DELETE ALL PROMPTS
+exports.deleteAllPrompts = async (req, res) => {
+  try {
+    await Prompt.deleteMany();
+
+    res.status(200).json({
+      message: "All prompts deleted successfully",
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: "Server Error",
+      error: error.message,
+    });
+  }
+};
+
+// ── ADD THESE TWO FUNCTIONS to your promptController.js ──────────────────────
+ 
+// GET LIBRARY PROMPTS
+exports.getLibraryPrompts = async (req, res) => {
+  try {
+    const prompts = await Prompt.find({ type: "library", isPublic: true })
+      .populate({ path: "category", select: "name", strictPopulate: false })
+      .select("-promptText") // hide prompt text in list
+      .sort({ createdAt: -1 });
+ 
+    res.status(200).json({ total: prompts.length, prompts });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};
+ 
+// GET SINGLE PROMPT TEXT (for copy button)
+exports.getPromptText = async (req, res) => {
+  try {
+    const { id } = req.params;
+ 
+    const prompt = await Prompt.findById(id).select("+promptText");
+    if (!prompt) {
+      return res.status(404).json({ message: "Prompt not found" });
+    }
+ 
+    res.status(200).json({ promptText: prompt.promptText });
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+};

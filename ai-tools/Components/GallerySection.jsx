@@ -1,168 +1,165 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Heart, Copy, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { Heart, Copy, Filter, ChevronLeft, ChevronRight, ImageOff } from "lucide-react";
 import Image from "next/image";
-import pic1 from "../public/coding.jpg"
-import pic2 from "../public/download(5).jpg"
-import axios from "axios"
+import axios from "axios";
 
-// ─── Data ────────────────────────────────────────────────────────────────────
-
-
-  
+// ─── Categories ───────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { id: "all", label: "All Items", icon: <Filter className="w-3.5 h-3.5" /> },
-  { id: "abstract", label: "Abstract Art" },
-  { id: "building1", label: "Building Decoration" },
-  { id: "building2", label: "Building Decoration" },
-  { id: "building3", label: "Building Decoration" },
-  { id: "human1", label: "Human Restoration" },
-  { id: "nature", label: "Nature Scenes" },
-  { id: "abstract2", label: "Abstract Art" },
-  { id: "human2", label: "Human Restoration" },
-  { id: "character", label: "Character Design" },
+  { id: "all",        label: "All Items",           icon: <Filter className="w-3.5 h-3.5" /> },
+  { id: "abstract",   label: "Abstract Art" },
+  { id: "building",   label: "Building Decoration" },
+  { id: "human",      label: "Human Restoration" },
+  { id: "nature",     label: "Nature Scenes" },
+  { id: "character",  label: "Character Design" },
 ];
 
-const BEFORE_IMG = pic1;
-const AFTER_IMG  = pic2;
+// ─── Skeleton Card ────────────────────────────────────────────────────────────
 
-const CARDS = [
-  {
-    id: 1,
-    category: "Human Restoration",
-    categoryColor: "from-indigo-500 to-violet-500",
-    title: "Portrait Elegance Restore",
-    author: "A Qadir (Kingbro)",
-    likes: 13,
-    before: BEFORE_IMG,
-    after: AFTER_IMG,
-  },
-  {
-    id: 2,
-    category: "Human Restoration",
-    categoryColor: "from-pink-500 to-rose-500",
-    title: "Vivid Color Splash Art",
-    author: "A Qadir (Kingbro)",
-    likes: 4,
-    before: BEFORE_IMG,
-    after: AFTER_IMG,
-  },
-  {
-    id: 3,
-    category: "Human Restoration",
-    categoryColor: "from-indigo-500 to-violet-500",
-    title: "Classic Frame Enhancement",
-    author: "A Qadir (Kingbro)",
-    likes: 1,
-    before: BEFORE_IMG,
-    after: AFTER_IMG,
-  },
-  {
-    id: 4,
-    category: "Building Decoration",
-    categoryColor: "from-amber-500 to-orange-500",
-    title: "Architectural Facade Restore",
-    author: "A Qadir (Kingbro)",
-    likes: 5,
-    before: BEFORE_IMG,
-    after: AFTER_IMG,
-  },
-  {
-    id: 5,
-    category: "Human Restoration",
-    categoryColor: "from-indigo-500 to-violet-500",
-    title: "Infant Portrait Remaster",
-    author: "A Qadir (Kingbro)",
-    likes: 5,
-    before: BEFORE_IMG,
-    after: AFTER_IMG,
-  },
-];
+function SkeletonCard() {
+  return (
+    <div className="flex flex-col rounded-2xl overflow-hidden bg-[#0f1024] border border-white/8 animate-pulse">
+      <div className="h-64 sm:h-72 bg-white/5" />
+      <div className="flex flex-col gap-3 px-4 pt-3 pb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-full bg-white/10 shrink-0" />
+          <div className="flex flex-col gap-1.5 flex-1">
+            <div className="h-2.5 w-24 rounded bg-white/10" />
+            <div className="h-2 w-16 rounded bg-white/8" />
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-14 rounded-xl bg-white/8" />
+          <div className="h-8 flex-1 rounded-xl bg-white/8" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Empty State ──────────────────────────────────────────────────────────────
+
+function EmptyState() {
+  return (
+    <div className="col-span-full flex flex-col items-center justify-center py-24 gap-4">
+      <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+        <ImageOff className="w-7 h-7 text-gray-600" />
+      </div>
+      <div className="text-center">
+        <p className="text-sm font-semibold text-gray-400">No prompts uploaded yet</p>
+        <p className="text-xs text-gray-600 mt-1">Be the first to share your work with the community!</p>
+      </div>
+    </div>
+  );
+}
 
 // ─── Before/After Card ────────────────────────────────────────────────────────
 
 function BeforeAfterCard({ card }) {
-  const [sliderPos, setSliderPos] = useState(50);
+  const [sliderPos, setSliderPos]   = useState(50);
   const [isDragging, setIsDragging] = useState(false);
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(card.likes);
-  const containerRef = useRef(null);
-  console.log(card.title);
-  
+  const [liked, setLiked]           = useState(false);
+  const [likeCount, setLikeCount]   = useState(card.likes ?? 0);
+  const containerRef                = useRef(null);
 
   const updateSlider = useCallback((clientX) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+    const x    = Math.max(0, Math.min(clientX - rect.left, rect.width));
     setSliderPos((x / rect.width) * 100);
   }, []);
 
-  const onMouseMove = useCallback((e) => {
-    if (isDragging) updateSlider(e.clientX);
-  }, [isDragging, updateSlider]);
-
+  const onMouseMove  = useCallback((e) => { if (isDragging) updateSlider(e.clientX); }, [isDragging, updateSlider]);
   const onMouseEnter = useCallback((e) => updateSlider(e.clientX), [updateSlider]);
   const onMouseLeave = useCallback(() => setSliderPos(50), []);
-
-  const onTouchMove = useCallback((e) => {
-    e.preventDefault();
-    updateSlider(e.touches[0].clientX);
-  }, [updateSlider]);
+  const onTouchMove  = useCallback((e) => { e.preventDefault(); updateSlider(e.touches[0].clientX); }, [updateSlider]);
 
   const handleLike = () => {
-    setLiked((p) => !p);
-    setLikeCount((p) => liked ? p - 1 : p + 1);
+    setLiked((p)      => !p);
+    setLikeCount((p)  => liked ? p - 1 : p + 1);
   };
+
+  // ── Safely extract string from a field that might be a populated object ──
+  // e.g. author: { _id, name }  OR  author: "A Qadir"
+  const resolveStr = (field, fallback = "") => {
+    if (!field) return fallback;
+    if (typeof field === "string") return field;
+    if (typeof field === "object")
+      return field.name || field.title || field.label || field.username || fallback;
+    return String(field);
+  };
+
+  // ── Resolve image URLs ──
+  const beforeSrc = card.beforeImage || card.before || null;
+  const afterSrc  = card.afterImage  || card.after  || null;
+
+  // ── Author ──
+  const authorName    = resolveStr(card.author || card.authorName, "Unknown");
+  const authorInitial = authorName.charAt(0).toUpperCase();
+
+  // ── Category ──
+  const categoryLabel = resolveStr(card.category, "General");
+
+  // ── Category badge color ──
+  const badgeColor = card.categoryColor || "from-indigo-500 to-violet-500";
 
   return (
     <div className="group flex flex-col rounded-2xl overflow-hidden bg-[#0f1024] border border-white/8 hover:border-indigo-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1">
 
-      {/* Image Comparison */}
+      {/* ── Image Comparison ── */}
       <div
         ref={containerRef}
         className="relative h-64 sm:h-72 cursor-col-resize overflow-hidden select-none"
-        onMouseMove={(e) => { onMouseEnter(e); onMouseMove(e); }}
+        onMouseMove={(e)  => { onMouseEnter(e); onMouseMove(e); }}
         onMouseLeave={onMouseLeave}
         onMouseDown={() => setIsDragging(true)}
-        onMouseUp={() => setIsDragging(false)}
+        onMouseUp={()   => setIsDragging(false)}
         onTouchMove={onTouchMove}
         onTouchStart={() => setIsDragging(true)}
-        onTouchEnd={() => setIsDragging(false)}
+        onTouchEnd={()  => setIsDragging(false)}
       >
-        {/* After image (base) — FIX: use fill + sizes */}
-        <Image
-          src={card.afterImage}
-          alt="After"
-          fill
-          sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
-          className="object-cover"
-          draggable={false}
-        />
-
-        {/* Before image (clipped) — FIX: wrapper is absolute+clipped, Image uses fill */}
-        <div
-          className="absolute inset-0 overflow-hidden"
-          style={{ width: `${sliderPos}%` }}
-        >
+        {/* After image — base layer */}
+        {afterSrc ? (
           <Image
-            src={card.beforeImage}
-            alt="Before"
+            src={afterSrc}
+            alt="After"
             fill
             sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
             className="object-cover"
-            style={{ maxWidth: "none" }}
             draggable={false}
           />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 to-violet-900/40 flex items-center justify-center">
+            <span className="text-[10px] text-gray-600 uppercase tracking-widest">After</span>
+          </div>
+        )}
+
+        {/* Before image — clipped layer */}
+        <div className="absolute inset-0 overflow-hidden" style={{ width: `${sliderPos}%` }}>
+          {beforeSrc ? (
+            <Image
+              src={beforeSrc}
+              alt="Before"
+              fill
+              sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
+              className="object-cover"
+              style={{ maxWidth: "none" }}
+              draggable={false}
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-900/60 to-gray-800/60 flex items-center justify-center">
+              <span className="text-[10px] text-gray-600 uppercase tracking-widest">Before</span>
+            </div>
+          )}
         </div>
 
-        {/* Slider line */}
+        {/* Slider line + handle */}
         <div
           className="absolute top-0 bottom-0 w-0.5 bg-white/90 shadow-[0_0_12px_rgba(255,255,255,0.8)] z-10 pointer-events-none"
           style={{ left: `${sliderPos}%`, transform: "translateX(-50%)" }}
         >
-          {/* Handle circle */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white shadow-xl flex items-center justify-center">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-gray-700">
               <path d="M8 7l-5 5 5 5M16 7l5 5-5 5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -171,8 +168,8 @@ function BeforeAfterCard({ card }) {
         </div>
 
         {/* Category badge */}
-        <div className={`absolute top-3 left-3 z-20 px-2.5 py-1 rounded-md bg-gradient-to-r ${card.categoryColor} text-white text-[10px] font-bold uppercase tracking-widest shadow-lg`}>
-          {card.category}
+        <div className={`absolute top-3 left-3 z-20 px-2.5 py-1 rounded-md bg-gradient-to-r ${badgeColor} text-white text-[10px] font-bold uppercase tracking-widest shadow-lg`}>
+          {categoryLabel}
         </div>
 
         {/* More options */}
@@ -187,16 +184,16 @@ function BeforeAfterCard({ card }) {
         <div className="absolute bottom-3 right-3 z-20 px-2 py-0.5 rounded bg-indigo-600/70 backdrop-blur-sm text-[10px] font-bold tracking-widest text-white uppercase">After</div>
       </div>
 
-      {/* Card Footer */}
+      {/* ── Card Footer ── */}
       <div className="flex flex-col gap-3 px-4 pt-3 pb-4">
         {/* Author */}
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-            A
+            {authorInitial}
           </div>
-          <div>
-            <p className="text-xs font-semibold text-white leading-tight">{card.author}</p>
-            <p className="text-[10px] text-gray-500">{card.title}</p>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-white leading-tight truncate">{authorName}</p>
+            <p className="text-[10px] text-gray-500 truncate">{ resolveStr(card.title, "Untitled") }</p>
           </div>
         </div>
 
@@ -228,22 +225,24 @@ function BeforeAfterCard({ card }) {
 
 export default function GallerySection() {
   const [activeCategory, setActiveCategory] = useState("all");
-  const scrollRef = useRef(null);
+  const [prompts, setPrompts]               = useState([]);
+  const [loading, setLoading]               = useState(true);
+  const [error, setError]                   = useState(false);
+  const scrollRef                           = useRef(null);
 
-  const [prompts, setPrompts] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-useEffect(() => {
+  // ── Fetch prompts from backend ──
+  useEffect(() => {
     const fetchPrompts = async () => {
+      setLoading(true);
+      setError(false);
       try {
-        const res = await axios.get(
-          "http://localhost:4000/api/prompts/community"
-        );
-
-        setPrompts(res.data.prompts);
-
-      } catch (error) {
-        console.log("Error fetching prompts:", error);
+        const res = await axios.get("http://localhost:4000/api/prompts/community"); // <-- apni endpoint yahan daalo
+        // Backend se array directly aaye ya { prompts: [...] } dono handle hain
+        const data = Array.isArray(res.data) ? res.data : (res.data.prompts ?? []);
+        setPrompts(data);
+      } catch (err) {
+        console.error("Error fetching prompts:", err);
+        setError(true);
       } finally {
         setLoading(false);
       }
@@ -251,6 +250,16 @@ useEffect(() => {
 
     fetchPrompts();
   }, []);
+
+  // ── Category filter ──
+  const filteredPrompts =
+    activeCategory === "all"
+      ? prompts
+      : prompts.filter(
+          (p) =>
+            p.category?.toLowerCase().includes(activeCategory.toLowerCase()) ||
+            p.categoryId === activeCategory
+        );
 
   const scrollCategories = (dir) => {
     if (!scrollRef.current) return;
@@ -299,11 +308,12 @@ useEffect(() => {
       </div>
 
       {/* ── Decorative Scrollbar Track ── */}
-      <div className="relative h-1.5 rounded-full mb-8 overflow-hidden"
+      <div
+        className="relative h-1.5 rounded-full mb-8 overflow-hidden"
         style={{ background: "linear-gradient(90deg, #1e1b4b, #312e81, #4338ca, #6d28d9, #7c3aed, #4338ca, #312e81, #1e1b4b)" }}
       >
         <div
-          className="absolute inset-y-0 left-0 w-1/3 rounded-full animate-pulse"
+          className="absolute inset-y-0 left-0 w-1/3 rounded-full"
           style={{
             background: "linear-gradient(90deg, transparent, rgba(139,92,246,0.8), rgba(99,102,241,1), rgba(139,92,246,0.8), transparent)",
             animation: "slideGlow 3s ease-in-out infinite",
@@ -319,9 +329,30 @@ useEffect(() => {
 
       {/* ── Cards Grid ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {prompts.map((card) => (
-          <BeforeAfterCard key={card._id} card={card} />
-        ))}
+
+        {/* Loading skeletons */}
+        {loading &&
+          Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
+        }
+
+        {/* Error state */}
+        {!loading && error && (
+          <div className="col-span-full flex flex-col items-center justify-center py-24 gap-3">
+            <p className="text-sm text-red-400 font-semibold">Failed to load prompts</p>
+            <p className="text-xs text-gray-600">Backend se connection nahi ho saka. Server check karo.</p>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!loading && !error && filteredPrompts.length === 0 && <EmptyState />}
+
+        {/* Actual cards */}
+        {!loading && !error &&
+          filteredPrompts.map((card) => (
+            <BeforeAfterCard key={card._id} card={card} />
+          ))
+        }
+
       </div>
     </section>
   );

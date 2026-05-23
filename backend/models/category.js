@@ -12,4 +12,6 @@ const categorySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Category", categorySchema);
+// 🔥 FIX: Prevent OverwriteModelError
+module.exports =
+  mongoose.models.Category || mongoose.model("Category", categorySchema);

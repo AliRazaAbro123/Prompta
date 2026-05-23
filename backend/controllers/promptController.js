@@ -1,6 +1,5 @@
 const Prompt = require("../models/Prompt");
-const Category = require("../models/Category");
-
+const Category = require("../models/category");
 // CREATE PROMPT
 exports.createPrompt = async (req, res) => {
   try {

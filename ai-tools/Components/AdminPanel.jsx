@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import axios from "axios";
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-const API = "http://localhost:4000/api"; // apna backend URL yahan
+const API = "https://prompta-backend.vercel.app/api"; // apna backend URL yahan
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 

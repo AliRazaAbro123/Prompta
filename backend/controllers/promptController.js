@@ -9,7 +9,7 @@ exports.createPrompt = async (req, res) => {
       afterImage,
       promptText,
       categoryId,
-      type, // "community" or "library"
+      type, // "community" or "library" 
     } = req.body;
 
     // 🔎 Validation

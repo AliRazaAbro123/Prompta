@@ -236,7 +236,7 @@ export default function GallerySection() {
       setLoading(true);
       setError(false);
       try {
-        const res = await axios.get("http://localhost:4000/api/prompts/community"); // <-- apni endpoint yahan daalo
+        const res = await axios.get("https://prompta-backend.vercel.app/api/prompts/community"); // <-- apni endpoint yahan daalo
         // Backend se array directly aaye ya { prompts: [...] } dono handle hain
         const data = Array.isArray(res.data) ? res.data : (res.data.prompts ?? []);
         setPrompts(data);

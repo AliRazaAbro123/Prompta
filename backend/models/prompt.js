@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
-const User = require("../models/User");       // ✅ ADD THIS
-const Category = require("../models/Category"); // ✅ ADD THIS
+const User = require("../models/user");       // ✅ ADD THIS
+const Category = require("../models/category"); // ✅ ADD THIS
 
 const promptSchema = new mongoose.Schema(
   {

@@ -6,7 +6,7 @@ import axios from "axios";
 const API = "https://prompta-backend.vercel.app/api"; // apna backend URL yahan
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
-
+ 
 // File → base64 string
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {

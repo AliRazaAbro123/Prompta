@@ -9,7 +9,7 @@ exports.getCategories = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
+ 
 // CREATE CATEGORY
 exports.createCategory = async (req, res) => {
   try {

@@ -1,4 +1,5 @@
 import { Search, MapPin } from "lucide-react";
+import Link from "next/link";
 
 const avatars = ["A", "B", "C", "D"];
 
@@ -18,10 +19,12 @@ export default function PromptaFooter() {
       <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-10 pt-12 pb-0">
         {/* Main grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 pb-10">
-
           {/* Brand */}
           <div className="sm:col-span-2 lg:col-span-1 flex flex-col gap-5">
-            <div className="flex items-center gap-3 group cursor-pointer">
+            <Link
+              href={"/"}
+              className="flex items-center gap-3 group cursor-pointer"
+            >
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:shadow-blue-400/50 transition-shadow duration-300">
                 <svg
                   width="18"
@@ -44,7 +47,7 @@ export default function PromptaFooter() {
               >
                 Prompta
               </span>
-            </div>
+            </Link>
 
             <p className="text-[#6b7a9e] text-sm leading-relaxed max-w-[220px]">
               The intersection of AI creativity and professional restoration. We
@@ -53,10 +56,16 @@ export default function PromptaFooter() {
 
             <div className="flex gap-3 mt-1">
               <button className="w-9 h-9 rounded-lg border border-blue-900/60 bg-blue-950/40 hover:bg-blue-900/40 hover:border-blue-400/50 flex items-center justify-center transition-all duration-200 group">
-                <Search size={15} className="text-[#6b7a9e] group-hover:text-blue-300 transition-colors" />
+                <Search
+                  size={15}
+                  className="text-[#6b7a9e] group-hover:text-blue-300 transition-colors"
+                />
               </button>
               <button className="w-9 h-9 rounded-lg border border-blue-900/60 bg-blue-950/40 hover:bg-blue-900/40 hover:border-blue-400/50 flex items-center justify-center transition-all duration-200 group">
-                <MapPin size={15} className="text-[#6b7a9e] group-hover:text-blue-300 transition-colors" />
+                <MapPin
+                  size={15}
+                  className="text-[#6b7a9e] group-hover:text-blue-300 transition-colors"
+                />
               </button>
             </div>
           </div>
@@ -78,7 +87,9 @@ export default function PromptaFooter() {
                 >
                   12k
                 </span>
-                <span className="text-blue-400 font-bold text-2xl leading-none mb-0.5">+</span>
+                <span className="text-blue-400 font-bold text-2xl leading-none mb-0.5">
+                  +
+                </span>
               </div>
               <p className="text-[#6b7a9e] text-[10px] font-semibold uppercase tracking-[0.12em] -mt-2">
                 Daily Creations
@@ -100,7 +111,9 @@ export default function PromptaFooter() {
                       ][i],
                     }}
                   >
-                    <span className="text-white text-[10px] font-bold">{letter}</span>
+                    <span className="text-white text-[10px] font-bold">
+                      {letter}
+                    </span>
                   </div>
                 ))}
                 <div
@@ -122,15 +135,27 @@ export default function PromptaFooter() {
               Navigation
             </h3>
             <nav className="flex flex-col gap-3">
-              {["Gallery", "Prompts"].map((item) => (
-                <a
+              {/* {["Gallery", "Prompts"].map((item) => (
+                <Link
                   key={item}
                   href="#"
                   className="text-[#6b7a9e] text-sm hover:text-blue-300 transition-all duration-200 hover:translate-x-1 transform inline-block w-fit"
                 >
                   {item}
-                </a>
-              ))}
+                </Link>
+              ))} */}
+              <Link
+                href={"/"}
+                className="text-[#6b7a9e] text-sm hover:text-blue-300 transition-all duration-200 hover:translate-x-1 transform inline-block w-fit"
+              >
+                Community Gallery
+              </Link>
+              <Link
+                href={"/Library"}
+                className="text-[#6b7a9e] text-sm hover:text-blue-300 transition-all duration-200 hover:translate-x-1 transform inline-block w-fit"
+              >
+                Prompt Library
+              </Link>
             </nav>
           </div>
 

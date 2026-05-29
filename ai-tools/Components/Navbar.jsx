@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
@@ -20,12 +22,38 @@ export default function Navbar() {
   }, [menuOpen]);
 
   const navLinks = [
-    { label: "Community Gallery", active: true, href:"/" },
+    { label: "Community Gallery", href: "/" },
     { label: "Prompt Library", href: "/Library" },
   ];
 
+  const isActive = (href) => pathname === href;
+
   return (
     <>
+      <style>{`
+        @keyframes activeGlow {
+          0%, 100% { box-shadow: 0 0 8px rgba(99,102,241,0.4), inset 0 0 8px rgba(99,102,241,0.05); }
+          50% { box-shadow: 0 0 16px rgba(139,92,246,0.6), inset 0 0 12px rgba(139,92,246,0.1); }
+        }
+        @keyframes activePulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.6; transform: scale(0.85); }
+        }
+        @keyframes activeUnderline {
+          0%, 100% { transform: scaleX(1); opacity: 1; }
+          50% { transform: scaleX(0.7); opacity: 0.6; }
+        }
+        .nav-active-link {
+          animation: activeGlow 2.5s ease-in-out infinite;
+        }
+        .nav-active-dot {
+          animation: activePulse 2.5s ease-in-out infinite;
+        }
+        .nav-active-underline {
+          animation: activeUnderline 2.5s ease-in-out infinite;
+        }
+      `}</style>
+
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
@@ -37,7 +65,7 @@ export default function Navbar() {
           <div className="flex items-center justify-between h-16">
 
             {/* Logo */}
-            <div className="flex items-center gap-2.5 select-none">
+            <Link href={"/"} className="flex items-center gap-2.5 select-none">
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-white">
                   <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -45,57 +73,38 @@ export default function Navbar() {
               </div>
               <span className="text-white font-semibold text-lg tracking-tight">
                 <span className="font-bold">Prompt</span>
-                <span className="text-indigo-400 font-light">a</span>
+                <span className="text-indigo-400 font-light"> Libs</span>
               </span>
-            </div>
+            </Link>
 
             {/* Desktop Nav Links */}
             <div className="hidden md:flex items-center gap-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    link.active
-                      ? "text-white bg-white/10 border border-white/10"
-                      : "text-gray-400 hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {navLinks.map((link) => {
+                const active = isActive(link.href);
+                return (
+                  <Link
+                    key={link.label}
+                    href={link.href}
+                    className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 overflow-hidden ${
+                      active
+                        ? "text-white bg-white/10 border border-indigo-500/40 nav-active-link"
+                        : "text-gray-400 hover:text-white hover:bg-white/5 border border-transparent"
+                    }`}
+                  >
+                    {link.label}
+                    {/* Animated underline bar */}
+                    {active && (
+                      <span
+                        className="nav-active-underline absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-gradient-to-r from-indigo-400 to-violet-400"
+                      />
+                    )}
+                  </Link>
+                );
+              })}
             </div>
 
             {/* Desktop Right Side */}
             <div className="hidden md:flex items-center gap-3">
-              {/* Admin */}
-              <Link
-                href={"/Admin"}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-amber-400 hover:bg-amber-400/10 transition-all duration-200"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3"/>
-                  <path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2"/>
-                </svg>
-                Admin
-              </Link>
-
-              {/* Search */}
-              <div className="relative">
-                <svg
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4"
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                >
-                  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Search vision..."
-                  className="bg-white/5 border border-white/8 text-sm text-gray-300 placeholder-gray-500 rounded-xl pl-9 pr-4 py-2 w-44 focus:outline-none focus:border-indigo-500/50 focus:bg-white/8 transition-all duration-200"
-                />
-              </div>
-
-              {/* Login */}
               <button className="px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-sm font-semibold shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-200 active:scale-95">
                 Login
               </button>
@@ -165,37 +174,31 @@ export default function Navbar() {
 
         {/* Drawer Body */}
         <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-2">
-
-          {/* Search */}
-          <div className="relative mb-3">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-            </svg>
-            <input
-              type="text"
-              placeholder="Search vision..."
-              className="w-full bg-white/5 border border-white/8 text-sm text-gray-300 placeholder-gray-500 rounded-xl pl-9 pr-4 py-2.5 focus:outline-none focus:border-indigo-500/60 transition-all duration-200"
-            />
-          </div>
-
-          {/* Nav Links */}
-          {navLinks.map((link) => (
-            <a
-              key={link.label}
-              href="#"
-              onClick={() => setMenuOpen(false)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                link.active
-                  ? "text-white bg-indigo-600/20 border border-indigo-500/30"
-                  : "text-gray-400 hover:text-white hover:bg-white/6"
-              }`}
-            >
-              <span>{link.label}</span>
-              {link.active && (
-                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-400" />
-              )}
-            </a>
-          ))}
+          {navLinks.map((link) => {
+            const active = isActive(link.href);
+            return (
+              <Link
+                key={link.label}
+                href={link.href}
+                onClick={() => setMenuOpen(false)}
+                className={`relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 overflow-hidden ${
+                  active
+                    ? "text-white bg-indigo-600/20 border border-indigo-500/30 nav-active-link"
+                    : "text-gray-400 hover:text-white hover:bg-white/6 border border-transparent"
+                }`}
+              >
+                <span>{link.label}</span>
+                {active && (
+                  <>
+                    {/* Animated dot */}
+                    <span className="nav-active-dot ml-auto w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                    {/* Animated bottom bar */}
+                    <span className="nav-active-underline absolute bottom-0 left-4 right-4 h-[2px] rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" />
+                  </>
+                )}
+              </Link>
+            );
+          })}
 
           {/* Admin */}
           <a

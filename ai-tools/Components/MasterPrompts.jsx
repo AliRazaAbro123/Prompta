@@ -270,11 +270,6 @@ export default function MasterPrompts() {
 
           {/* Header */}
           <div className="text-center mb-14" style={{ animation: "fadeSlideUp 0.6s ease both" }}>
-            <div className="inline-flex items-center gap-2 mb-5 px-4 py-1.5 rounded-full border"
-              style={{ background: "rgba(29,78,216,0.1)", borderColor: "rgba(59,130,246,0.25)" }}>
-              <span className="text-blue-400 text-[10px] font-bold tracking-[0.2em] uppercase">✦ Prompt Library</span>
-            </div>
-
             <h2
               className="text-white text-4xl sm:text-5xl font-bold leading-tight"
               style={{ fontFamily: "'DM Serif Display', serif", letterSpacing: "-0.01em" }}
@@ -292,6 +287,10 @@ export default function MasterPrompts() {
               style={{ fontFamily: "'DM Sans', sans-serif" }}>
               Curated high-performance prompts built for visionaries and AI creators.
             </p>
+            <div className="inline-flex items-center gap-2 mb-5 px-4 py-1.5 rounded-full border"
+              style={{ background: "rgba(29,78,216,0.1)", borderColor: "rgba(59,130,246,0.25)" }}>
+              <span className="text-blue-400 text-[10px] font-bold tracking-[0.2em] uppercase">✦ Prompt Library</span>
+            </div>
 
             <div className="mt-8 mx-auto w-24 h-px"
               style={{ background: "linear-gradient(90deg, transparent, rgba(59,130,246,0.5), transparent)" }} />

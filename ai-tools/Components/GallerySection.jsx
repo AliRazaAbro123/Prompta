@@ -261,16 +261,16 @@ export default function GallerySection() {
             p.categoryId === activeCategory
         );
 
-  const scrollCategories = (dir) => {
-    if (!scrollRef.current) return;
-    scrollRef.current.scrollBy({ left: dir * 200, behavior: "smooth" });
-  };
+  // const scrollCategories = (dir) => {
+  //   if (!scrollRef.current) return;
+  //   scrollRef.current.scrollBy({ left: dir * 200, behavior: "smooth" });
+  // };
 
   return (
     <section className="bg-[#0a0b1a] px-4 sm:px-6 lg:px-8 py-8">
 
       {/* ── Categories ── */}
-      <div className="relative flex items-center gap-1 mb-3">
+      {/* <div className="relative flex items-center gap-1 mb-3">
         <button
           onClick={() => scrollCategories(-1)}
           className="shrink-0 w-8 h-8 rounded-full bg-white/5 border border-white/8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-indigo-600/30 hover:border-indigo-500/40 transition-all z-10"
@@ -305,10 +305,10 @@ export default function GallerySection() {
         >
           <ChevronRight className="w-4 h-4" />
         </button>
-      </div>
+      </div> */}
 
       {/* ── Decorative Scrollbar Track ── */}
-      <div
+      {/* <div
         className="relative h-1.5 rounded-full mb-8 overflow-hidden"
         style={{ background: "linear-gradient(90deg, #1e1b4b, #312e81, #4338ca, #6d28d9, #7c3aed, #4338ca, #312e81, #1e1b4b)" }}
       >
@@ -325,7 +325,7 @@ export default function GallerySection() {
             100% { left: 100%; }
           }
         `}</style>
-      </div>
+      </div> */}
 
       {/* ── Cards Grid ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">

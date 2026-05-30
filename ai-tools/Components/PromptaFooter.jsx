@@ -55,7 +55,7 @@ export default function PromptaFooter() {
             </p>
 
             <div className="flex gap-3 mt-1">
-              <button className="w-9 h-9 rounded-lg border border-blue-900/60 bg-blue-950/40 hover:bg-blue-900/40 hover:border-blue-400/50 flex items-center justify-center transition-all duration-200 group">
+              {/* <button className="w-9 h-9 rounded-lg border border-blue-900/60 bg-blue-950/40 hover:bg-blue-900/40 hover:border-blue-400/50 flex items-center justify-center transition-all duration-200 group">
                 <Search
                   size={15}
                   className="text-[#6b7a9e] group-hover:text-blue-300 transition-colors"
@@ -66,7 +66,7 @@ export default function PromptaFooter() {
                   size={15}
                   className="text-[#6b7a9e] group-hover:text-blue-300 transition-colors"
                 />
-              </button>
+              </button> */}
             </div>
           </div>
 

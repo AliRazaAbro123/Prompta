@@ -1,19 +1,21 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Heart, Copy, Filter, ChevronLeft, ChevronRight, ImageOff } from "lucide-react";
+import { Heart, Copy, Check, Filter, ImageOff } from "lucide-react";
 import Image from "next/image";
 import axios from "axios";
+
+const API = "https://prompta-backend.vercel.app/api"; // apna base URL
 
 // ─── Categories ───────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
-  { id: "all",        label: "All Items",           icon: <Filter className="w-3.5 h-3.5" /> },
-  { id: "abstract",   label: "Abstract Art" },
-  { id: "building",   label: "Building Decoration" },
-  { id: "human",      label: "Human Restoration" },
-  { id: "nature",     label: "Nature Scenes" },
-  { id: "character",  label: "Character Design" },
+  { id: "all",       label: "All Items", icon: <Filter className="w-3.5 h-3.5" /> },
+  { id: "abstract",  label: "Abstract Art" },
+  { id: "building",  label: "Building Decoration" },
+  { id: "human",     label: "Human Restoration" },
+  { id: "nature",    label: "Nature Scenes" },
+  { id: "character", label: "Character Design" },
 ];
 
 // ─── Skeleton Card ────────────────────────────────────────────────────────────
@@ -58,12 +60,83 @@ function EmptyState() {
 // ─── Before/After Card ────────────────────────────────────────────────────────
 
 function BeforeAfterCard({ card }) {
-  const [sliderPos, setSliderPos]   = useState(50);
+  const [sliderPos,  setSliderPos]  = useState(50);
   const [isDragging, setIsDragging] = useState(false);
-  const [liked, setLiked]           = useState(false);
-  const [likeCount, setLikeCount]   = useState(card.likes ?? 0);
-  const containerRef                = useRef(null);
 
+  // Like state
+  const [liked,     setLiked]     = useState(false);
+  const [likeCount, setLikeCount] = useState(card.likes ?? 0);
+  const [likeLoading, setLikeLoading] = useState(false);
+
+  // Copy state
+  const [copyState, setCopyState] = useState("idle"); // "idle" | "loading" | "done"
+
+  const containerRef = useRef(null);
+
+  // ── Like status on mount ──
+  useEffect(() => {
+    const fetchLikeStatus = async () => {
+      try {
+        const res = await axios.get(`${API}/interactions/like/${card._id}`, {
+          withCredentials: true, // cookie bhejo
+        });
+        setLiked(res.data.liked);
+        setLikeCount(res.data.likeCount);
+      } catch (err) {
+        // silently fail — default values rehenge
+      }
+    };
+    if (card._id) fetchLikeStatus();
+  }, [card._id]);
+
+  // ── Like toggle ──
+  const handleLike = async () => {
+    if (likeLoading) return;
+    // Optimistic update
+    const wasLiked = liked;
+    setLiked(!wasLiked);
+    setLikeCount((c) => wasLiked ? c - 1 : c + 1);
+    setLikeLoading(true);
+    try {
+      const res = await axios.post(
+        `${API}/interactions/like/${card._id}`,
+        {},
+        { withCredentials: true }
+      );
+      // Server se actual values sync karo
+      setLiked(res.data.liked);
+      setLikeCount(res.data.likeCount);
+    } catch (err) {
+      // Revert on error
+      setLiked(wasLiked);
+      setLikeCount((c) => wasLiked ? c + 1 : c - 1);
+    } finally {
+      setLikeLoading(false);
+    }
+  };
+
+  // ── Copy prompt ──
+  const handleCopy = async () => {
+    if (copyState !== "idle") return;
+    setCopyState("loading");
+    try {
+      const res = await axios.post(
+        `${API}/interactions/copy/${card._id}`,
+        {},
+        { withCredentials: true }
+      );
+      // Clipboard mein copy karo
+      await navigator.clipboard.writeText(res.data.promptText);
+      setCopyState("done");
+      // 2 second baad reset
+      setTimeout(() => setCopyState("idle"), 2000);
+    } catch (err) {
+      console.error("Copy failed:", err);
+      setCopyState("idle");
+    }
+  };
+
+  // ── Slider logic ──
   const updateSlider = useCallback((clientX) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
@@ -76,13 +149,7 @@ function BeforeAfterCard({ card }) {
   const onMouseLeave = useCallback(() => setSliderPos(50), []);
   const onTouchMove  = useCallback((e) => { e.preventDefault(); updateSlider(e.touches[0].clientX); }, [updateSlider]);
 
-  const handleLike = () => {
-    setLiked((p)      => !p);
-    setLikeCount((p)  => liked ? p - 1 : p + 1);
-  };
-
-  // ── Safely extract string from a field that might be a populated object ──
-  // e.g. author: { _id, name }  OR  author: "A Qadir"
+  // ── Helpers ──
   const resolveStr = (field, fallback = "") => {
     if (!field) return fallback;
     if (typeof field === "string") return field;
@@ -91,19 +158,12 @@ function BeforeAfterCard({ card }) {
     return String(field);
   };
 
-  // ── Resolve image URLs ──
-  const beforeSrc = card.beforeImage || card.before || null;
-  const afterSrc  = card.afterImage  || card.after  || null;
-
-  // ── Author ──
-  const authorName    = resolveStr(card.author || card.authorName, "Unknown");
+  const beforeSrc     = card.beforeImage || card.before || null;
+  const afterSrc      = card.afterImage  || card.after  || null;
+  const authorName    = resolveStr(card.author || card.authorName || card.createdBy, "Unknown");
   const authorInitial = authorName.charAt(0).toUpperCase();
-
-  // ── Category ──
   const categoryLabel = resolveStr(card.category, "General");
-
-  // ── Category badge color ──
-  const badgeColor = card.categoryColor || "from-indigo-500 to-violet-500";
+  const badgeColor    = card.categoryColor || "from-indigo-500 to-violet-500";
 
   return (
     <div className="group flex flex-col rounded-2xl overflow-hidden bg-[#0f1024] border border-white/8 hover:border-indigo-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1">
@@ -172,13 +232,6 @@ function BeforeAfterCard({ card }) {
           {categoryLabel}
         </div>
 
-        {/* More options */}
-        <button className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-[#1a1b35]/80 backdrop-blur-sm border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-indigo-600/60 transition-all">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
-          </svg>
-        </button>
-
         {/* Before / After labels */}
         <div className="absolute bottom-3 left-3 z-20 px-2 py-0.5 rounded bg-black/50 backdrop-blur-sm text-[10px] font-bold tracking-widest text-white/80 uppercase">Before</div>
         <div className="absolute bottom-3 right-3 z-20 px-2 py-0.5 rounded bg-indigo-600/70 backdrop-blur-sm text-[10px] font-bold tracking-widest text-white uppercase">After</div>
@@ -193,28 +246,63 @@ function BeforeAfterCard({ card }) {
           </div>
           <div className="min-w-0">
             <p className="text-xs font-semibold text-white leading-tight truncate">{authorName}</p>
-            <p className="text-[10px] text-gray-500 truncate">{ resolveStr(card.title, "Untitled") }</p>
+            <p className="text-[10px] text-gray-500 truncate">{resolveStr(card.title, "Untitled")}</p>
           </div>
         </div>
 
         {/* Buttons */}
         <div className="flex items-center gap-2">
+
+          {/* ── Like Button ── */}
           <button
             onClick={handleLike}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95 ${
+            disabled={likeLoading}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95 disabled:opacity-60 ${
               liked
                 ? "bg-rose-500/20 border border-rose-500/40 text-rose-400"
                 : "bg-white/5 border border-white/8 text-gray-400 hover:bg-rose-500/15 hover:border-rose-500/30 hover:text-rose-400"
             }`}
           >
-            <Heart className={`w-3.5 h-3.5 transition-all ${liked ? "fill-rose-400 text-rose-400 scale-110" : ""}`} />
+            <Heart
+              className={`w-3.5 h-3.5 transition-all ${
+                liked ? "fill-rose-400 text-rose-400 scale-110" : ""
+              }`}
+            />
             <span>{likeCount}</span>
           </button>
 
-          <button className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-lg shadow-indigo-500/20 transition-all duration-200 active:scale-95 hover:shadow-indigo-500/35">
-            <Copy className="w-3.5 h-3.5" />
-            <span>Prompt</span>
+          {/* ── Copy Button ── */}
+          <button
+            onClick={handleCopy}
+            disabled={copyState !== "idle"}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95 disabled:opacity-70 ${
+              copyState === "done"
+                ? "bg-green-500/20 border border-green-500/40 text-green-400"
+                : "bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/35"
+            }`}
+          >
+            {copyState === "done" ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                <span>Copied!</span>
+              </>
+            ) : copyState === "loading" ? (
+              <>
+                {/* Simple spinner */}
+                <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+                <span>Copying…</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                <span>Prompt</span>
+              </>
+            )}
           </button>
+
         </div>
       </div>
     </div>
@@ -225,19 +313,16 @@ function BeforeAfterCard({ card }) {
 
 export default function GallerySection() {
   const [activeCategory, setActiveCategory] = useState("all");
-  const [prompts, setPrompts]               = useState([]);
-  const [loading, setLoading]               = useState(true);
-  const [error, setError]                   = useState(false);
-  const scrollRef                           = useRef(null);
+  const [prompts,        setPrompts]        = useState([]);
+  const [loading,        setLoading]        = useState(true);
+  const [error,          setError]          = useState(false);
 
-  // ── Fetch prompts from backend ──
   useEffect(() => {
     const fetchPrompts = async () => {
       setLoading(true);
       setError(false);
       try {
-        const res = await axios.get("https://prompta-backend.vercel.app/api/prompts/community"); // <-- apni endpoint yahan daalo
-        // Backend se array directly aaye ya { prompts: [...] } dono handle hain
+        const res  = await axios.get(`${API}/prompts/community`);
         const data = Array.isArray(res.data) ? res.data : (res.data.prompts ?? []);
         setPrompts(data);
       } catch (err) {
@@ -247,11 +332,9 @@ export default function GallerySection() {
         setLoading(false);
       }
     };
-
     fetchPrompts();
   }, []);
 
-  // ── Category filter ──
   const filteredPrompts =
     activeCategory === "all"
       ? prompts
@@ -261,81 +344,12 @@ export default function GallerySection() {
             p.categoryId === activeCategory
         );
 
-  // const scrollCategories = (dir) => {
-  //   if (!scrollRef.current) return;
-  //   scrollRef.current.scrollBy({ left: dir * 200, behavior: "smooth" });
-  // };
-
   return (
     <section className="bg-[#0a0b1a] px-4 sm:px-6 lg:px-8 py-8">
-
-      {/* ── Categories ── */}
-      {/* <div className="relative flex items-center gap-1 mb-3">
-        <button
-          onClick={() => scrollCategories(-1)}
-          className="shrink-0 w-8 h-8 rounded-full bg-white/5 border border-white/8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-indigo-600/30 hover:border-indigo-500/40 transition-all z-10"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-
-        <div
-          ref={scrollRef}
-          className="flex items-center gap-2 overflow-x-auto scrollbar-none flex-1"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-        >
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
-              className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 active:scale-95 ${
-                activeCategory === cat.id
-                  ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/30 border border-indigo-400/30"
-                  : "bg-white/4 border border-white/8 text-gray-400 hover:text-white hover:bg-white/8 hover:border-white/15"
-              }`}
-            >
-              {cat.icon && cat.icon}
-              {cat.label}
-            </button>
-          ))}
-        </div>
-
-        <button
-          onClick={() => scrollCategories(1)}
-          className="shrink-0 w-8 h-8 rounded-full bg-white/5 border border-white/8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-indigo-600/30 hover:border-indigo-500/40 transition-all z-10"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div> */}
-
-      {/* ── Decorative Scrollbar Track ── */}
-      {/* <div
-        className="relative h-1.5 rounded-full mb-8 overflow-hidden"
-        style={{ background: "linear-gradient(90deg, #1e1b4b, #312e81, #4338ca, #6d28d9, #7c3aed, #4338ca, #312e81, #1e1b4b)" }}
-      >
-        <div
-          className="absolute inset-y-0 left-0 w-1/3 rounded-full"
-          style={{
-            background: "linear-gradient(90deg, transparent, rgba(139,92,246,0.8), rgba(99,102,241,1), rgba(139,92,246,0.8), transparent)",
-            animation: "slideGlow 3s ease-in-out infinite",
-          }}
-        />
-        <style>{`
-          @keyframes slideGlow {
-            0%   { left: -33%; }
-            100% { left: 100%; }
-          }
-        `}</style>
-      </div> */}
-
-      {/* ── Cards Grid ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
 
-        {/* Loading skeletons */}
-        {loading &&
-          Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
-        }
+        {loading && Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
 
-        {/* Error state */}
         {!loading && error && (
           <div className="col-span-full flex flex-col items-center justify-center py-24 gap-3">
             <p className="text-sm text-red-400 font-semibold">Failed to load prompts</p>
@@ -343,10 +357,8 @@ export default function GallerySection() {
           </div>
         )}
 
-        {/* Empty state */}
         {!loading && !error && filteredPrompts.length === 0 && <EmptyState />}
 
-        {/* Actual cards */}
         {!loading && !error &&
           filteredPrompts.map((card) => (
             <BeforeAfterCard key={card._id} card={card} />

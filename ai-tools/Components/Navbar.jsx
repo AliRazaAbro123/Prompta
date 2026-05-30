@@ -112,11 +112,11 @@ export default function Navbar() {
 
             {/* Mobile: Search + Hamburger */}
             <div className="flex md:hidden items-center gap-2">
-              <button className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition-all">
+              {/* <button className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition-all">
                 <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                 </svg>
-              </button>
+              </button> */}
               <button
                 onClick={() => setMenuOpen(true)}
                 className="p-2 text-gray-300 hover:text-white rounded-lg hover:bg-white/5 transition-all"
@@ -201,7 +201,7 @@ export default function Navbar() {
           })}
 
           {/* Admin */}
-          <a
+          {/* <a
             href="#"
             onClick={() => setMenuOpen(false)}
             className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-amber-400 hover:bg-amber-400/10 transition-all duration-200"
@@ -211,7 +211,7 @@ export default function Navbar() {
               <path d="M19.07 4.93l-1.41 1.41M4.93 4.93l1.41 1.41M4.93 19.07l1.41-1.41M19.07 19.07l-1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2"/>
             </svg>
             Admin
-          </a>
+          </a> */}
         </div>
 
         {/* Drawer Footer — Login */}

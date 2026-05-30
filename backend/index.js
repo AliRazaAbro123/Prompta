@@ -1,6 +1,5 @@
 const dns = require('dns');
 dns.setServers(['8.8.8.8', '8.8.4.4']); // Forces Google DNS
-const interactionRoutes = require("./routes/interactionRoutes");
 const cookieParser = require("cookie-parser");
 
 // Load environment variables
@@ -28,7 +27,7 @@ app.use(cookieParser());
 // Use Routes
 app.use("/api/categories", categoryRoutes);
 app.use("/api/prompts", promptRoutes);
-app.use("/api/interactions", interactionRoutes);
+app.use("/api/interactions", require("./routes/interactionRoutes"));
 
 
 // MongoDB Connection

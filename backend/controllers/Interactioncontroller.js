@@ -1,6 +1,6 @@
-const Interaction = require("../models/like");         // like.js
-const Copy        = require("../models/copytracking"); // copytracking.js
-const Prompt      = require("../models/prompt");
+const Interaction = require("../models/like"); // like.js
+const Copy = require("../models/copytracking"); // copytracking.js
+const Prompt = require("../models/prompt");
 const { v4: uuidv4 } = require("uuid");
 
 // ─── Helper: cookie se anonymousId lo ya banao ───────────────────────────────
@@ -22,12 +22,12 @@ const getOrCreateAnonymousId = (req, res) => {
 exports.toggleLike = async (req, res) => {
   try {
     const { promptId } = req.params;
-    const userId      = req.user?._id ?? null;
+    const userId = req.user?._id ?? null;
     const anonymousId = userId ? null : getOrCreateAnonymousId(req, res);
 
     const filter = {
       prompt: promptId,
-      type:   "like",
+      type: "like",
       ...(userId ? { user: userId } : { anonymousId }),
     };
 
@@ -44,7 +44,7 @@ exports.toggleLike = async (req, res) => {
 
     const likeCount = await Interaction.countDocuments({
       prompt: promptId,
-      type:   "like",
+      type: "like",
     });
 
     res.status(200).json({ liked, likeCount });
@@ -58,17 +58,17 @@ exports.toggleLike = async (req, res) => {
 exports.getLikeStatus = async (req, res) => {
   try {
     const { promptId } = req.params;
-    const userId      = req.user?._id ?? null;
+    const userId = req.user?._id ?? null;
     const anonymousId = req.cookies?.anonymousId ?? null;
 
     const filter = {
       prompt: promptId,
-      type:   "like",
+      type: "like",
       ...(userId
         ? { user: userId }
         : anonymousId
-        ? { anonymousId }
-        : { anonymousId: "__none__" }), // koi match nahi milega
+          ? { anonymousId }
+          : { anonymousId: "__none__" }), // koi match nahi milega
     };
 
     const [existing, likeCount] = await Promise.all([
@@ -86,7 +86,7 @@ exports.getLikeStatus = async (req, res) => {
 exports.trackCopy = async (req, res) => {
   try {
     const { promptId } = req.params;
-    const userId      = req.user?._id ?? null;
+    const userId = req.user?._id ?? null;
     const anonymousId = userId ? null : getOrCreateAnonymousId(req, res);
 
     // Prompt text fetch karo

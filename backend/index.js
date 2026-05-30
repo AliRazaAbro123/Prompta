@@ -6,7 +6,6 @@ require("dotenv").config();
 const categoryRoutes = require("./routes/categoryRoutes");
 const promptRoutes = require("./routes/promptRoutes");
 const cors = require("cors");
-const cookieParser = require("cookie-parser");
 
 const express = require("express");
 const mongoose = require("mongoose");
@@ -22,12 +21,10 @@ app.use(
     credentials: true,
   })
 );
-app.use(cookieParser());
 
 // Use Routes
 app.use("/api/categories", categoryRoutes);
 app.use("/api/prompts", promptRoutes);
-app.use("/api/interactions", require("./routes/interactionRoutes"));
 
 
 // MongoDB Connection

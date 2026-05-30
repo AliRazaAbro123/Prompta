@@ -1,12 +1,12 @@
 const dns = require('dns');
 dns.setServers(['8.8.8.8', '8.8.4.4']); // Forces Google DNS
-const cookieParser = require("cookie-parser");
 
 // Load environment variables
 require("dotenv").config();
 const categoryRoutes = require("./routes/categoryRoutes");
 const promptRoutes = require("./routes/promptRoutes");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 
 const express = require("express");
 const mongoose = require("mongoose");
